@@ -1,0 +1,43 @@
+name: Update profile art
+
+on:
+  schedule:
+    # once a day, 03:17 UTC (off the hour to avoid GitHub Actions congestion)
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install scraper deps
+        run: pip install -r scripts/requirements.txt
+
+      - name: Fetch contributions
+        env:
+          GH_PROFILE_USER: rohitraj24-SE
+        run: python scripts/fetch_contributions.py
+
+      - name: Render heatmap SVG
+        run: python scripts/render_heatmap_svg.py
+
+      - name: Commit changes if anything moved
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/contributions.json contrib-heatmap.svg
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore: refresh contribution graph"
+            git push
+          fi
